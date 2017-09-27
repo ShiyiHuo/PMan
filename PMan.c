@@ -15,30 +15,65 @@
 #include <stdbool.h>          //boolean
 
 
-#define MAX_INPUT_SIZE 4000
-#define MAX_PROCESS_SIZE 4000
+#define MAX_INPUT_SIZE 9999
+#define MAX_PROCESS_SIZE 9999
 
 // Linked list node for process
 typedef struct node {
   pid_t pid;  //process id
   char* process;  // process: command and its argument
-  bool isRunning; // if a process is running
+  int status; // status of process: 0 - terminated, 1 - running, 2 - stopped
+  struct node* next;
 } process_node;
 
-int process_count = 0;  //global variable counting # of process
-process_node* process_list[MAX_PROCESS_SIZE];
+//int process_count = 0;  //global variable counting # of process
+//process_node* process_list[MAX_PROCESS_SIZE];
+
+// process list head
+process_node* head = NULL;
+
+char* status_array[] = {
+  "terminated",
+  "running",
+  "stopped"
+};
+
 
 void update_process_status() {
   pid_t pid;
   int p_status;
-  int i;
-  for (i = 0; i < process_count; i++) {
+  while (1) {
     pid = waitpid(-1, &p_status, WNOHANG);
     if (pid > 0) {  //if child process exits
-      printf("Process %d has been terminated\n", process_list[i] -> pid);
-      //remove process from process list
-      process_count--;
-      process_list[i] = process_list[process_count];
+      printf("Process %d has been terminated\n", pid);
+      
+      // check if pid is in process list: if yes, remove it
+      process_node* curr = head;
+      while (curr != NULL) {
+          if (curr->pid ==pid) {
+            /********* remove process from process list **********/
+            process_node* temp1 = head;
+            process_node* temp2 = NULL;
+
+            while (temp1 != NULL) {
+              if (temp1->pid == pid) {
+                if (temp1 == head) {
+                  head = head->next;
+                } else {
+                  temp2->next = temp1->next;
+                }
+                free(temp1);
+                break;
+              }
+              temp2 = temp1;
+              temp1 = temp1->next;
+            }
+          }
+          curr = curr->next;
+      }
+
+    } else {
+      break;
     }
   }
 }
@@ -89,12 +124,30 @@ int main() {
 
           // add process into list
           // process list is an array of process_node
-          process_list[process_count] = malloc(sizeof(process_node));
-          process_list[process_count] -> process = command[1];
-          process_list[process_count] -> pid = pid;
-          process_list[process_count] -> isRunning = true;
-          process_count++;
+          // process_list[process_count] = malloc(sizeof(process_node));
+          // process_list[process_count] -> process = command[1];
+          // process_list[process_count] -> pid = pid;
+          // process_list[process_count] -> isRunning = true;
+          // process_count++;
 
+          // create a process node
+          process_node* p = (process_node*)malloc(sizeof(process_node));
+          p->pid = pid;
+          p->process = command[1];
+          p->status = 1;  // running
+          p->next = NULL;
+
+          // add process into list
+          if (head == NULL) {
+            head = p;
+          } else {
+            process_node* current = head;
+            while (current->next != NULL) {
+              current = current->next;
+            }
+            current->next = p;
+          }
+          continue;
         }
         else if (pid == 0) {
           /* in child process */
@@ -119,12 +172,16 @@ int main() {
         printf("Error: Input is not in the desired format 'bglist'\n");
         continue;
       } else {
-        int i;
-        for (i = 0; i < process_count; i++) {
+        int count = 0;
+        process_node* proc_count_ptr = head;
+
+        while (proc_count_ptr != NULL) {
+          count ++;
           // TODO: need to add process status into bglist
-          printf("%d: %s\n", process_list[i]->pid, process_list[i]->process);
+          printf("%d: %s\n", proc_count_ptr->pid, proc_count_ptr->process);
+          proc_count_ptr = proc_count_ptr->next;
         }
-        printf("Total background jobs: %d\n", process_count);
+        printf("Total background jobs: %d\n", count);
       }
     }
 
