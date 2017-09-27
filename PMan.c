@@ -1,3 +1,8 @@
+/* Reference:
+  http://www.learn-c.org/en/Linked_lists
+*/
+
+
 #include <stdio.h>             // printf()
 #include <string.h>            // strcmp()
 #include <readline/readline.h> // readline
@@ -10,26 +15,25 @@
 #include <stdbool.h>          //boolean
 
 
-#define MAX_INPUT_SIZE 200
-#define MAX_PROCESS_SIZE 200
+#define MAX_INPUT_SIZE 4000
+#define MAX_PROCESS_SIZE 4000
 
 // Linked list node for process
 typedef struct node {
   pid_t pid;  //process id
   char* process;  // process: command and its argument
   bool isRunning; // if a process is running
-} Process_node;
+} process_node;
 
 int process_count = 0;  //global variable counting # of process
-Process_node* process_list[MAX_PROCESS_SIZE];
-
+process_node* process_list[MAX_PROCESS_SIZE];
 
 void update_process_status() {
   pid_t pid;
-  int status;
+  int p_status;
   int i;
   for (i = 0; i < process_count; i++) {
-    pid = waitpid(-1, &status, WNOHANG);
+    pid = waitpid(-1, &p_status, WNOHANG);
     if (pid > 0) {  //if child process exits
       printf("Process %d has been terminated\n", process_list[i] -> pid);
       //remove process from process list
@@ -44,7 +48,6 @@ int main() {
   while(1) {
     /******************update process status***************/
     update_process_status();
-
 
     /* user input format:
      * bg cmd para1 para2 ... (there could be no parameters)
@@ -66,18 +69,17 @@ int main() {
       token = strtok(NULL, " ");
       cmd_length++;
     }
-
-    int i;
-    for (i=0; i<MAX_INPUT_SIZE; i++) {
-      printf("token: %s\n", command[i]);
-    }
-
+    command[cmd_length] = NULL;
+    // int i;
+    // for (i=0; i<MAX_INPUT_SIZE; i++) {
+    //   printf("token: %s\n", command[i]);
+    // }
 
     /********************bg*********************/
     if (strcmp(command[0],"bg") == 0) {
       if (cmd_length < 2) {
         printf("Error: Input is not in the desired format 'bg cmd para1 para2 ...'\n");
-        exit(0);
+        continue;
       } else {  //cmd_length >= 2
         //execute bg
         pid_t pid=fork();
@@ -87,17 +89,18 @@ int main() {
 
           // add process into list
           // process list is an array of process_node
-          process_list[process_count] = malloc(sizeof(Process_node));
+          process_list[process_count] = malloc(sizeof(process_node));
           process_list[process_count] -> process = command[1];
           process_list[process_count] -> pid = pid;
           process_list[process_count] -> isRunning = true;
           process_count++;
 
-
         }
         else if (pid == 0) {
           /* in child process */
-          if(execvp(command[1],command) == -1) {
+          //char * args[] = {"./inf" ,"a", "1", NULL};
+          // use command+1 to get cmd and its parameters
+          if(execvp(command[1], command+1) == -1) {
             printf("Error: Cannot execute command %s\n", command[1]);
             continue;
           }
@@ -163,7 +166,7 @@ int main() {
 
     /*******************pstat***************/
     else if (strcmp(command[0],"pstat") == 0) {
-
+      
     }
 
     /*************command not found**********/
