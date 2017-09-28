@@ -1,5 +1,6 @@
 /* Reference:
   http://www.learn-c.org/en/Linked_lists
+  https://www.cs.bu.edu/teaching/c/file-io/intro/
 */
 
 
@@ -26,17 +27,8 @@ typedef struct node {
   struct node* next;
 } process_node;
 
-//int process_count = 0;  //global variable counting # of process
-//process_node* process_list[MAX_PROCESS_SIZE];
-
 // process list head
 process_node* head = NULL;
-
-char* status_array[] = {
-  "terminated",
-  "running",
-  "stopped"
-};
 
 
 void update_process_status() {
@@ -51,7 +43,8 @@ void update_process_status() {
       process_node* curr = head;
       while (curr != NULL) {
           if (curr->pid ==pid) {
-            /********* remove process from process list **********/
+            /********* remove process by pid **********/
+            // TODO: more modification!!!!!
             process_node* temp1 = head;
             process_node* temp2 = NULL;
 
@@ -70,6 +63,7 @@ void update_process_status() {
             }
           }
           curr = curr->next;
+
       }
 
     } else {
@@ -78,20 +72,28 @@ void update_process_status() {
   }
 }
 
+
+/* to check if a process exists in process list
+ * return 1 if the process exists
+ * return 0 if the process does not exist
+ */
+int process_exists(pid_t pid) {
+  process_node * curr = head;
+    while (curr != NULL) {
+      if (curr->pid == pid) {
+        return 1;
+      }
+      curr = curr->next;
+    }
+    return 0;
+}
+
 int main() {
 
   while(1) {
     /******************update process status***************/
     update_process_status();
 
-    /* user input format:
-     * bg cmd para1 para2 ... (there could be no parameters)
-     * bglist
-     * bgkill pid
-     * bgstart pid
-     * bgstop pid
-     * pstat pid
-     */
 
     /*******************read in user input*****************/
     char* input = readline("PMan: > ");
@@ -104,11 +106,20 @@ int main() {
       token = strtok(NULL, " ");
       cmd_length++;
     }
+    //fix for segmentation fault: ensure the last item in array is null
     command[cmd_length] = NULL;
-    // int i;
-    // for (i=0; i<MAX_INPUT_SIZE; i++) {
-    //   printf("token: %s\n", command[i]);
-    // }
+
+
+
+    /* user input format:
+     * bg cmd para1 para2 ... (there could be no parameters)
+     * bglist
+     * bgkill pid
+     * bgstart pid
+     * bgstop pid
+     * pstat pid
+     */
+
 
     /********************bg*********************/
     if (strcmp(command[0],"bg") == 0) {
@@ -121,14 +132,6 @@ int main() {
         if (pid > 0) {
           /* in parent process */
           printf("Running process with pid %d\n", pid);
-
-          // add process into list
-          // process list is an array of process_node
-          // process_list[process_count] = malloc(sizeof(process_node));
-          // process_list[process_count] -> process = command[1];
-          // process_list[process_count] -> pid = pid;
-          // process_list[process_count] -> isRunning = true;
-          // process_count++;
 
           // create a process node
           process_node* p = (process_node*)malloc(sizeof(process_node));
@@ -159,7 +162,7 @@ int main() {
           }
         } else {
           /* failure */
-          printf("Error: failed to fork\n");
+          printf("Error: Failed to fork\n");
           continue;
         }
       }
@@ -185,6 +188,8 @@ int main() {
       }
     }
 
+    // kill() returns 0 if successes and returns -1 for fails
+
     /*******************bgkill***************/
     else if (strcmp(command[0],"bgkill") == 0) {
       if (cmd_length != 2) {
@@ -192,8 +197,16 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        kill(pid, SIGTERM);
-        printf("Process %d has been terminated\n", pid);
+        if (process_exists(pid)) {
+          if (kill(pid, SIGTERM) == 0) {  // if succeeds
+            printf("Process %d has been terminated\n", pid);
+          } else {
+            printf("Error: Failed to kill process %d\n", pid);
+          }
+        } else {
+          printf("Error: Process %d does not exist\n", pid);
+          continue;
+        }
       }
     }
 
@@ -204,8 +217,16 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        kill(pid, SIGSTOP);
-        printf("Process %d has been stopped\n", pid);
+        if (process_exists(pid)) {
+          if (kill(pid, SIGSTOP) == 0) {  // if succeeds
+            printf("Process %d has been stopped\n", pid);
+          } else {
+            printf("Error: Failed to kill process %d\n", pid);
+          }
+        } else {
+          printf("Error: Process %d does not exist\n", pid);
+          continue;
+        }
       }
     }
 
@@ -216,14 +237,56 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        kill(pid, SIGCONT);
-        printf("Process %d has been resumed\n", pid);
+        if (process_exists(pid)) {
+          if (kill(pid, SIGCONT) == 0) {  // if succeeds
+            printf("Process %d has been resumed\n", pid);
+          } else {
+            printf("Error: Failed to kill process %d\n", pid);
+          }
+        } else {
+          printf("Error: Process %d does not exist\n", pid);
+          continue;
+        }
       }
     }
 
     /*******************pstat***************/
     else if (strcmp(command[0],"pstat") == 0) {
-      
+      if (cmd_length != 2) {
+        printf("Error: Input is not in the desired format 'pstat pid'\n");
+        continue;
+      } else {
+        pid_t pid = atoi(command[1]); // integer
+        if (process_exists(pid)) {
+          // open files and read data
+          FILE *ifp_status;
+          FILE *ifp_stat;
+          char filepath_status[1024];
+          char filepath_stat[1024];
+          
+          sprintf(filepath_status,"/proc/%d/status",pid);
+          sprintf(filepath_stat,"/proc/%d/status",pid);
+
+          
+
+          char *mode = "r";
+          ifp_status = fopen("",mode);
+          ifp_stat = fopen("",mode);
+
+          if (ifp_stat == NULL) {
+            fprintf(stderr, "Cannot open input file pstatus\n");
+            exit(1);
+          } else {
+            // read info
+            printf();
+          }
+
+
+        } else {
+          printf("Error: Process %d does not exist\n", pid);
+          continue;
+        }
+      }
     }
 
     /*************command not found**********/
