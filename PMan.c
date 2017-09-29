@@ -73,13 +73,24 @@ int process_exists(pid_t pid) {
     return 0;
 }
 
+
+void bglist() {
+  int count = 0;
+  process_node* proc_count_ptr = head;
+
+  while (proc_count_ptr != NULL) {
+    count ++;
+    printf("%d: %s\n", proc_count_ptr->pid, proc_count_ptr->process);
+    proc_count_ptr = proc_count_ptr->next;
+  }
+  printf("Total background jobs: %d\n", count);
+}
+
+
+
 int main() {
 
   while(1) {
-    /******************update process status***************/
-    //update_process_status();
-
-
     /*****************************read in user input**************************/
     /* user input format:
      * bg cmd para1 para2 ... (there could be no parameters)
@@ -157,15 +168,7 @@ int main() {
         printf("Error: Input is not in the desired format 'bglist'\n");
         continue;
       } else {
-        int count = 0;
-        process_node* proc_count_ptr = head;
-
-        while (proc_count_ptr != NULL) {
-          count ++;
-          printf("%d: %s\n", proc_count_ptr->pid, proc_count_ptr->process);
-          proc_count_ptr = proc_count_ptr->next;
-        }
-        printf("Total background jobs: %d\n", count);
+        bglist();
       }
     }
 
