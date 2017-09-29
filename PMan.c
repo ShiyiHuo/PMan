@@ -27,8 +27,7 @@ typedef struct node {
   struct node* next;
 } process_node;
 
-// process list head
-process_node* head = NULL;
+process_node* head = NULL;    // process list head
 
 
 void update_process_status() {
@@ -57,7 +56,6 @@ void update_process_status() {
   }
 }
 
-
 /* to check if a process exists in process list
  * return 1 if the process exists
  * return 0 if the process does not exist
@@ -73,7 +71,7 @@ int process_exists(pid_t pid) {
     return 0;
 }
 
-
+// display a list of all the programs currently executing in the background
 void bglist() {
   int count = 0;
   process_node* proc_count_ptr = head;
@@ -86,6 +84,49 @@ void bglist() {
   printf("Total background jobs: %d\n", count);
 }
 
+// terminate process <pid>
+void bgkill(pid_t pid) {
+  if (process_exists(pid)) {
+    // kill() returns 0 if successes and returns -1 for fails
+    if (kill(pid, SIGTERM) == 0) {
+      printf("Process %d has been terminated\n", pid);
+      usleep(1000);   // find the zombie and clean the zombie process
+    } else {
+      printf("Error: Failed to kill process %d\n", pid);
+    }
+  } else {
+    printf("Error: Process %d does not exist\n", pid);
+    return;
+  }
+}
+
+// temporarily stop process <pid>
+void bgstop(pid_t pid) {
+  if (process_exists(pid)) {
+    if (kill(pid, SIGSTOP) == 0) {  // if succeeds
+      printf("Process %d has been stopped\n", pid);
+    } else {
+      printf("Error: Failed to kill process %d\n", pid);
+    }
+  } else {
+    printf("Error: Process %d does not exist\n", pid);
+    return;
+  }
+}
+
+// restart process <pid> which has been previously stopped
+void bgstart(pid_t pid) {
+  if (process_exists(pid)) {
+    if (kill(pid, SIGCONT) == 0) {  // if succeeds
+      printf("Process %d has been resumed\n", pid);
+    } else {
+      printf("Error: Failed to kill process %d\n", pid);
+    }
+  } else {
+    printf("Error: Process %d does not exist\n", pid);
+    continue;
+  }
+}
 
 
 int main() {
@@ -180,18 +221,7 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        if (process_exists(pid)) {
-          // kill() returns 0 if successes and returns -1 for fails
-          if (kill(pid, SIGTERM) == 0) {
-            printf("Process %d has been terminated\n", pid);
-            usleep(1000);   // find the zombie and clean the zombie process
-          } else {
-            printf("Error: Failed to kill process %d\n", pid);
-          }
-        } else {
-          printf("Error: Process %d does not exist\n", pid);
-          continue;
-        }
+        bgkill(pid);
       }
     }
 
@@ -203,16 +233,7 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        if (process_exists(pid)) {
-          if (kill(pid, SIGSTOP) == 0) {  // if succeeds
-            printf("Process %d has been stopped\n", pid);
-          } else {
-            printf("Error: Failed to kill process %d\n", pid);
-          }
-        } else {
-          printf("Error: Process %d does not exist\n", pid);
-          continue;
-        }
+        bgstop(pid);
       }
     }
 
@@ -224,16 +245,7 @@ int main() {
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        if (process_exists(pid)) {
-          if (kill(pid, SIGCONT) == 0) {  // if succeeds
-            printf("Process %d has been resumed\n", pid);
-          } else {
-            printf("Error: Failed to kill process %d\n", pid);
-          }
-        } else {
-          printf("Error: Process %d does not exist\n", pid);
-          continue;
-        }
+        bgstart(pid);
       }
     }
 
