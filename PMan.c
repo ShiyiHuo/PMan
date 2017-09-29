@@ -39,7 +39,7 @@ void update_process_status() {
   while (1) {
     pid = waitpid(-1, &p_status, WNOHANG);
     if (pid > 0) {  //if child process exits
-      printf("Process %d has been terminated\n", pid);
+      //printf("Process %d has been terminated\n", pid);
 
       // check if pid is in process list: if yes, remove it
       // process_node* curr = head;
@@ -109,7 +109,7 @@ int main() {
 
   while(1) {
     /******************update process status***************/
-    update_process_status();
+    //update_process_status();
 
 
     /*****************************read in user input**************************/
@@ -214,6 +214,7 @@ int main() {
           // kill() returns 0 if successes and returns -1 for fails
           if (kill(pid, SIGTERM) == 0) {
             printf("Process %d has been terminated\n", pid);
+            usleep(1000);   // find the zombie and clean the zombie process
           } else {
             printf("Error: Failed to kill process %d\n", pid);
           }
