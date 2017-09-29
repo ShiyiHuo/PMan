@@ -7,16 +7,14 @@
 */
 
 
-#include <stdio.h>             // printf()
-#include <string.h>            // strcmp()
-#include <readline/readline.h> // readline
-#include <ctype.h>             // isdigit()
-#include <stdlib.h>            // malloc()
-#include <sys/types.h>         // pid_t
-#include <sys/wait.h>          // waitpid()
-#include <unistd.h>            // fork(), execvp()
-#include <signal.h>            // kill(), SIGTERM, SIGSTOP, SIGCONT
-#include <stdbool.h>          //boolean
+#include <stdio.h>
+#include <string.h>
+#include <readline/readline.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <signal.h>
 
 
 #define MAX_INPUT_SIZE 9999
@@ -38,35 +36,7 @@ void update_process_status() {
   int p_status;
   while (1) {
     pid = waitpid(-1, &p_status, WNOHANG);
-    if (pid > 0) {  //if child process exits
-      //printf("Process %d has been terminated\n", pid);
-
-      // check if pid is in process list: if yes, remove it
-      // process_node* curr = head;
-      // while (curr != NULL) {
-      //     if (curr->pid ==pid) {
-      //       /********* remove process by pid **********/
-      //       // TODO: more modification!!!!!
-      //       process_node* temp1 = head;
-      //       process_node* temp2 = NULL;
-      //
-      //       while (temp1 != NULL) {
-      //         if (temp1->pid == pid) {
-      //           if (temp1 == head) {
-      //             head = head->next;
-      //           } else {
-      //             temp2->next = temp1->next;
-      //           }
-      //           free(temp1);
-      //           break;
-      //         }
-      //         temp2 = temp1;
-      //         temp1 = temp1->next;
-      //       }
-      //     }
-      //     curr = curr->next;
-      // }
-
+    if (pid > 0) {  //if child process exits, remove it
       process_node *currP, *prevP;
       prevP = NULL;
 
@@ -80,8 +50,6 @@ void update_process_status() {
           free(currP);
         }
       }
-
-
     } else {
       break;
     }
@@ -163,7 +131,6 @@ int main() {
             }
             current->next = p;
           }
-          sleep(1); // make prompt appears after the output
           continue;
         }
         else if (pid == 0) {
@@ -290,7 +257,7 @@ int main() {
 
           if (file_stat == NULL) {
             printf("Error: Cannot open input file pstat\n");
-            exit(1);
+            continue;
           } else {
 
             while (fgets(stat_input,sizeof(stat_input)-1,file_stat) != NULL) {
@@ -323,7 +290,7 @@ int main() {
 
           if (file_status == NULL) {
             printf("Error: Cannot open input file pstatus\n");
-            exit(1);
+            continue;
           } else {
             while (fgets(status_input, sizeof(status_input)-1, file_status) != NULL) {
               char* token_status;
