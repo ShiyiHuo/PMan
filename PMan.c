@@ -1,7 +1,9 @@
-/* Reference:
-  http://www.learn-c.org/en/Linked_lists
-  https://www.cs.bu.edu/teaching/c/file-io/intro/
-  http://man7.org/linux/man-pages/man5/proc.5.html
+/* Reference
+ * Linked list:
+   http://www.learn-c.org/en/Linked_lists
+   https://www.cs.bu.edu/teaching/c/linked-list/delete/
+ * read pstat
+   http://man7.org/linux/man-pages/man5/proc.5.html
 */
 
 
@@ -40,35 +42,50 @@ void update_process_status() {
       printf("Process %d has been terminated\n", pid);
 
       // check if pid is in process list: if yes, remove it
-      process_node* curr = head;
-      while (curr != NULL) {
-          if (curr->pid ==pid) {
-            /********* remove process by pid **********/
-            // TODO: more modification!!!!!
-            process_node* temp1 = head;
-            process_node* temp2 = NULL;
+      // process_node* curr = head;
+      // while (curr != NULL) {
+      //     if (curr->pid ==pid) {
+      //       /********* remove process by pid **********/
+      //       // TODO: more modification!!!!!
+      //       process_node* temp1 = head;
+      //       process_node* temp2 = NULL;
+      //
+      //       while (temp1 != NULL) {
+      //         if (temp1->pid == pid) {
+      //           if (temp1 == head) {
+      //             head = head->next;
+      //           } else {
+      //             temp2->next = temp1->next;
+      //           }
+      //           free(temp1);
+      //           break;
+      //         }
+      //         temp2 = temp1;
+      //         temp1 = temp1->next;
+      //       }
+      //     }
+      //     curr = curr->next;
+      // }
 
-            while (temp1 != NULL) {
-              if (temp1->pid == pid) {
-                if (temp1 == head) {
-                  head = head->next;
-                } else {
-                  temp2->next = temp1->next;
-                }
-                free(temp1);
-                break;
-              }
-              temp2 = temp1;
-              temp1 = temp1->next;
-            }
+      process_node *currP, *prevP;
+      prevP = NULL;
+
+      for (currP = head; currP != NULL;	prevP = currP, currP = currP->next) {
+        if (currP->pid == pid) {  /* Found it. */
+          if (prevP == NULL) {
+             head = currP->next;
+          } else {
+            prevP->next = currP->next;
           }
-          curr = curr->next;
-
+          free(currP);
+        }
       }
+
 
     } else {
       break;
     }
+
   }
 }
 
