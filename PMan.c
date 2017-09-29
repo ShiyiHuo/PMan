@@ -24,7 +24,6 @@
 typedef struct node {
   pid_t pid;  //process id
   char* process;  // process: command and its argument
-  //int status; // status of process: 0 - terminated, 1 - running, 2 - stopped
   struct node* next;
 } process_node;
 
@@ -96,7 +95,15 @@ int main() {
     update_process_status();
 
 
-    /*******************read in user input*****************/
+    /*****************************read in user input**************************/
+    /* user input format:
+     * bg cmd para1 para2 ... (there could be no parameters)
+     * bglist
+     * bgkill pid
+     * bgstart pid
+     * bgstop pid
+     * pstat pid
+     */
     char* input = readline("PMan: > ");
     char* token = strtok(input," ");
     char* command[MAX_INPUT_SIZE];  // tokenized user input
@@ -111,18 +118,7 @@ int main() {
     command[cmd_length] = NULL;
 
 
-
-    /* user input format:
-     * bg cmd para1 para2 ... (there could be no parameters)
-     * bglist
-     * bgkill pid
-     * bgstart pid
-     * bgstop pid
-     * pstat pid
-     */
-
-
-    /********************bg*********************/
+    /***********************************bg************************************/
     if (strcmp(command[0],"bg") == 0) {
       if (cmd_length < 2) {
         printf("Error: Input is not in the desired format 'bg cmd para1 para2 ...'\n");
@@ -150,6 +146,7 @@ int main() {
             }
             current->next = p;
           }
+          sleep(1); // make prompt appears after the output
           continue;
         }
         else if (pid == 0) {
@@ -169,7 +166,8 @@ int main() {
 
     }
 
-    /*******************bglist***************/
+
+    /********************************bglist******************************/
     else if (strcmp(command[0],"bglist") == 0) {
       if (cmd_length != 1) {
         printf("Error: Input is not in the desired format 'bglist'\n");
@@ -187,9 +185,8 @@ int main() {
       }
     }
 
-    // kill() returns 0 if successes and returns -1 for fails
 
-    /*******************bgkill***************/
+    /**********************************bgkill******************************/
     else if (strcmp(command[0],"bgkill") == 0) {
       if (cmd_length != 2) {
         printf("Error: Input is not in the desired format 'bgkill pid'\n");
@@ -197,7 +194,8 @@ int main() {
       } else {
         pid_t pid = atoi(command[1]); // integer
         if (process_exists(pid)) {
-          if (kill(pid, SIGTERM) == 0) {  // if succeeds
+          // kill() returns 0 if successes and returns -1 for fails
+          if (kill(pid, SIGTERM) == 0) {
             printf("Process %d has been terminated\n", pid);
           } else {
             printf("Error: Failed to kill process %d\n", pid);
@@ -209,7 +207,8 @@ int main() {
       }
     }
 
-    /*******************bgstop***************/
+
+    /*********************************bgstop********************************/
     else if (strcmp(command[0],"bgstop") == 0) {
       if (cmd_length != 2) {
         printf("Error: Input is not in the desired format 'bgstop pid'\n");
@@ -229,7 +228,8 @@ int main() {
       }
     }
 
-    /*******************bgstart***************/
+
+    /***********************************bgstart*****************************/
     else if (strcmp(command[0],"bgstart") == 0) {
       if (cmd_length != 2) {
         printf("Error: Input is not in the desired format 'bgstart pid'\n");
@@ -249,26 +249,19 @@ int main() {
       }
     }
 
-    /************************************pstat**************************/
-    /* pstat includes:
-     * comm
-     * state
-     * utime
-     * stime
-     * rss
-     * voluntary_ctxt_switches
-     * nonvoluntary_ctxt_switches
-     */
+    /************************************pstat******************************/
     else if (strcmp(command[0],"pstat") == 0) {
       if (cmd_length != 2) {
         printf("Error: Input is not in the desired format 'pstat pid'\n");
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
-        //printf("%d\n", pid);
         if (process_exists(pid)) {
 
-          /***************read stat into stat_content***************/
+          /********************read stat*******************/
+          /* field:       comm   state   utime   stime   rss
+           * position:    2      3       14      15      24
+           */
           FILE *file_stat;
           char filepath_stat[MAX_INPUT_SIZE];   // path of stat file
           sprintf(filepath_stat,"/proc/%d/stat",pid);
@@ -276,11 +269,6 @@ int main() {
 
           int count_stat = 0;
           char stat_input[1024];
-
-          /* tokenized input:
-           * comm   state   utime   stime   rss
-           * 2      3       14      15      24
-           */
 
           if (file_stat == NULL) {
             printf("Error: Cannot open input file pstat\n");
@@ -292,7 +280,7 @@ int main() {
               token_stat = strtok(stat_input," ");
               while (token_stat != NULL) {
                 count_stat++;
-                //printf("pos: %d,\t%s\n", count_stat, token);
+                //printf("pos: %d,\t%s\n", count_stat, token_stat);
                 if (count_stat == 1)  printf("pid: %s\n", token_stat);
                 else if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
                 else if (count_stat == 3) printf("state: %s\n", token_stat);  //eg. R (Running)
@@ -307,7 +295,7 @@ int main() {
           }
 
 
-          /***************read status into status_content************/
+          /*********************read status****************/
           FILE *file_status;
           char filepath_status[MAX_INPUT_SIZE];
           sprintf(filepath_status,"/proc/%d/status",pid);
@@ -349,7 +337,8 @@ int main() {
       }
     }
 
-    /*************command not found**********/
+
+    /*****************************command not found*********************/
     else {
       printf("Error: Command is not found");
       continue;
