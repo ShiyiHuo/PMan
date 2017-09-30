@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
+#include <ctype.h>
 
 #define MAX_INPUT_SIZE 9999
 #define MAX_PROCESS_SIZE 9999
