@@ -6,7 +6,6 @@
    http://man7.org/linux/man-pages/man5/proc.5.html
 */
 
-
 #include <stdio.h>
 #include <string.h>
 #include <readline/readline.h>
@@ -15,7 +14,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <signal.h>
-
 
 #define MAX_INPUT_SIZE 9999
 #define MAX_PROCESS_SIZE 9999
@@ -30,6 +28,7 @@ typedef struct node {
 process_node* head = NULL;    // process list head
 
 
+// if the process is already terminated, remove it from the process list
 void update_process_status() {
   pid_t pid;
   int p_status;
@@ -71,10 +70,67 @@ int process_exists(pid_t pid) {
     return 0;
 }
 
+// read /proc/pid/stat file and retrive comm,state,utime,stime and rss
+void read_print_pstat(FILE* file_stat) {
+  int count_stat = 0;
+  char stat_input[1024];
+
+  if (file_stat == NULL) {
+    printf("Error: Cannot open input file pstat\n");
+    return;
+  } else {
+    while (fgets(stat_input,sizeof(stat_input)-1,file_stat) != NULL) {
+      char* token_stat;
+      token_stat = strtok(stat_input," ");
+      while (token_stat != NULL) {
+        count_stat++;
+        if (count_stat == 1)  printf("pid: %s\n", token_stat);
+        else if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
+        else if (count_stat == 3) printf("state: %s\n", token_stat);  //eg. R (Running)
+        else if (count_stat == 14)  printf("utime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in user mode
+        else if (count_stat == 15)  printf("stime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in kernel mode
+        else if (count_stat == 24)  printf("rss: %s\n", token_stat); // VmRSS
+
+        token_stat = strtok(NULL, " ");
+      }
+    }
+    fclose(file_stat);
+  }
+}
+
+// read /proc/pid/status file and retrive voluntary_ctxt_switches and nonvoluntary_ctxt_switches
+void read_print_pstatus(FILE* file_status) {
+  char status_input[1024];
+
+  if (file_status == NULL) {
+    printf("Error: Cannot open input file pstatus\n");
+    return;
+  } else {
+    while (fgets(status_input, sizeof(status_input)-1, file_status) != NULL) {
+      char* token_status;
+      token_status = strtok(status_input," :");
+      if (token_status != NULL) {
+        char* str1 = "voluntary_ctxt_switches";
+        char* str2 = "nonvoluntary_ctxt_switches";
+        if (strcmp(str1, token_status) == 0) {
+          token_status = strtok(NULL, " :\n");
+          printf("%s: %s\n", str1, token_status);
+        }
+        if (strcmp(str2, token_status) == 0) {
+          token_status = strtok(NULL, " :\n");
+          printf("%s: %s\n", str2, token_status);
+        }
+      }
+    }
+
+    fclose(file_status);
+  }
+}
+
+// start a program in the background
 void bg(char* command[]) {
   pid_t pid=fork();
-  if (pid > 0) {
-    /* in parent process */
+  if (pid > 0) {    // in parent process
     printf("Running process with pid %d\n", pid);
 
     // create a process node
@@ -95,11 +151,9 @@ void bg(char* command[]) {
     }
     return;
   }
-  else if (pid == 0) {
-    /* in child process */
+  else if (pid == 0) {    // in child process
     //char * args[] = {"./inf" ,"a", "1", NULL};
-    // use command+1 to get cmd and its parameters
-    if(execvp(command[1], command+1) == -1) {
+    if(execvp(command[1], command+1) == -1) {   // use command+1 to get cmd and its parameters
       printf("Error: Cannot execute command %s\n", command[1]);
       return;
     }
@@ -167,98 +221,32 @@ void bgstart(pid_t pid) {
   }
 }
 
+// list comm,state,utime,stime,rss,voluntary_ctxt_switches and nonvoluntary_ctxt_switches of a process
 void pstat(pid_t pid) {
   if (process_exists(pid)) {
-    /********************read stat*******************/
-    /* field:       comm   state   utime   stime   rss
-     * position:    2      3       14      15      24
-     */
+    // read process stat
     FILE *file_stat;
     char filepath_stat[MAX_INPUT_SIZE];   // path of stat file
     sprintf(filepath_stat,"/proc/%d/stat",pid);
     file_stat = fopen(filepath_stat,"r");
+    read_print_pstat(file_stat);
 
-    int count_stat = 0;
-    char stat_input[1024];
-
-    if (file_stat == NULL) {
-      printf("Error: Cannot open input file pstat\n");
-      continue;
-    } else {
-
-      while (fgets(stat_input,sizeof(stat_input)-1,file_stat) != NULL) {
-        char* token_stat;
-        token_stat = strtok(stat_input," ");
-        while (token_stat != NULL) {
-          count_stat++;
-          //printf("pos: %d,\t%s\n", count_stat, token_stat);
-          if (count_stat == 1)  printf("pid: %s\n", token_stat);
-          else if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
-          else if (count_stat == 3) printf("state: %s\n", token_stat);  //eg. R (Running)
-          else if (count_stat == 14)  printf("utime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in user mode
-          else if (count_stat == 15)  printf("stime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in kernel mode
-          else if (count_stat == 24)  printf("rss: %s\n", token_stat); // VmRSS
-
-          token_stat = strtok(NULL, " ");
-        }
-      }
-      fclose(file_stat);
-    }
-
-
-    /*********************read status****************/
+    // read process status
     FILE *file_status;
     char filepath_status[MAX_INPUT_SIZE];
     sprintf(filepath_status,"/proc/%d/status",pid);
     file_status = fopen(filepath_status,"r");
-
-    char status_input[1024];
-
-    if (file_status == NULL) {
-      printf("Error: Cannot open input file pstatus\n");
-      continue;
-    } else {
-      while (fgets(status_input, sizeof(status_input)-1, file_status) != NULL) {
-        char* token_status;
-
-        // TODO: modification needed!!!!!!!!!!!!
-        token_status = strtok(status_input," :");
-        if (token_status != NULL) {
-          char* str1 = "voluntary_ctxt_switches";
-          char* str2 = "nonvoluntary_ctxt_switches";
-          if (strcmp(str1, token_status) == 0) {
-            token_status = strtok(NULL, " :\n");
-            printf("%s: %s\n", str1, token_status);
-          }
-          if (strcmp(str2, token_status) == 0) {
-            token_status = strtok(NULL, " :\n");
-            printf("%s: %s\n", str2, token_status);
-          }
-        }
-      }
-
-      fclose(file_status);
-    }
-
+    read_print_pstatus(file_status);
   } else {
     printf("Error: Process %d does not exist\n", pid);
-    continue;
+    return;
   }
 }
 
 
 int main() {
-
   while(1) {
-    /*****************************read in user input**************************/
-    /* user input format:
-     * bg cmd para1 para2 ... (there could be no parameters)
-     * bglist
-     * bgkill pid
-     * bgstart pid
-     * bgstop pid
-     * pstat pid
-     */
+    // read user input
     char* input = readline("PMan: > ");
     char* token = strtok(input," ");
     char* command[MAX_INPUT_SIZE];  // tokenized user input
@@ -269,10 +257,10 @@ int main() {
       token = strtok(NULL, " ");
       cmd_length++;
     }
-    //fix for segmentation fault: ensure the last item in array is null
+    // fix for segmentation fault: ensure the last item in array is null
     command[cmd_length] = NULL;
 
-
+    /* execute command */
     if (strcmp(command[0],"bg") == 0) {
       if (cmd_length < 2) {
         printf("Error: Input is not in the desired format 'bg cmd para1 para2 ...'\n");
@@ -311,101 +299,15 @@ int main() {
         pid_t pid = atoi(command[1]); // integer
         bgstart(pid);
       }
-    }
-
-    /************************************pstat******************************/
-    else if (strcmp(command[0],"pstat") == 0) {
+    } else if (strcmp(command[0],"pstat") == 0) {
       if (cmd_length != 2) {
         printf("Error: Input is not in the desired format 'pstat pid'\n");
         continue;
       } else {
         pid_t pid = atoi(command[1]); // integer
         pstat(pid);
-
-        // if (process_exists(pid)) {
-
-        //   /********************read stat*******************/
-        //   /* field:       comm   state   utime   stime   rss
-        //    * position:    2      3       14      15      24
-        //    */
-        //   FILE *file_stat;
-        //   char filepath_stat[MAX_INPUT_SIZE];   // path of stat file
-        //   sprintf(filepath_stat,"/proc/%d/stat",pid);
-        //   file_stat = fopen(filepath_stat,"r");
-
-        //   int count_stat = 0;
-        //   char stat_input[1024];
-
-        //   if (file_stat == NULL) {
-        //     printf("Error: Cannot open input file pstat\n");
-        //     continue;
-        //   } else {
-
-        //     while (fgets(stat_input,sizeof(stat_input)-1,file_stat) != NULL) {
-        //       char* token_stat;
-        //       token_stat = strtok(stat_input," ");
-        //       while (token_stat != NULL) {
-        //         count_stat++;
-        //         //printf("pos: %d,\t%s\n", count_stat, token_stat);
-        //         if (count_stat == 1)  printf("pid: %s\n", token_stat);
-        //         else if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
-        //         else if (count_stat == 3) printf("state: %s\n", token_stat);  //eg. R (Running)
-        //         else if (count_stat == 14)  printf("utime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in user mode
-        //         else if (count_stat == 15)  printf("stime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in kernel mode
-        //         else if (count_stat == 24)  printf("rss: %s\n", token_stat); // VmRSS
-
-        //         token_stat = strtok(NULL, " ");
-        //       }
-        //     }
-        //     fclose(file_stat);
-        //   }
-
-
-        //   /*********************read status****************/
-        //   FILE *file_status;
-        //   char filepath_status[MAX_INPUT_SIZE];
-        //   sprintf(filepath_status,"/proc/%d/status",pid);
-        //   file_status = fopen(filepath_status,"r");
-
-        //   char status_input[1024];
-
-        //   if (file_status == NULL) {
-        //     printf("Error: Cannot open input file pstatus\n");
-        //     continue;
-        //   } else {
-        //     while (fgets(status_input, sizeof(status_input)-1, file_status) != NULL) {
-        //       char* token_status;
-
-        //       // TODO: modification needed!!!!!!!!!!!!
-        //       token_status = strtok(status_input," :");
-        //       if (token_status != NULL) {
-        //         char* str1 = "voluntary_ctxt_switches";
-        //         char* str2 = "nonvoluntary_ctxt_switches";
-        //         if (strcmp(str1, token_status) == 0) {
-        //           token_status = strtok(NULL, " :\n");
-        //           printf("%s: %s\n", str1, token_status);
-        //         }
-        //         if (strcmp(str2, token_status) == 0) {
-        //           token_status = strtok(NULL, " :\n");
-        //           printf("%s: %s\n", str2, token_status);
-        //         }
-        //       }
-        //     }
-
-        //     fclose(file_status);
-        //   }
-
-
-        // } else {
-        //   printf("Error: Process %d does not exist\n", pid);
-        //   continue;
-        // }
       }
-    }
-
-
-    /*****************************command not found*********************/
-    else {
+    } else {
       printf("Error: Command is not found\n");
       continue;
     }
