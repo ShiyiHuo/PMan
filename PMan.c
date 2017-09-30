@@ -70,6 +70,15 @@ int process_exists(pid_t pid) {
     return 0;
 }
 
+// returns 1 if input is number and returns 0 if input is not number
+int isNumber(char* s) {
+  int i;
+  for (i=0; i<strlen(s); i++) {
+    if (!isdigit(s[i])) return 0;
+  }
+  return 1;
+}
+
 // read /proc/pid/stat file and retrive comm,state,utime,stime and rss
 void read_print_pstat(FILE* file_stat) {
   int count_stat = 0;
@@ -84,8 +93,7 @@ void read_print_pstat(FILE* file_stat) {
       token_stat = strtok(stat_input," ");
       while (token_stat != NULL) {
         count_stat++;
-        if (count_stat == 1)  printf("pid: %s\n", token_stat);
-        else if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
+        if (count_stat == 2) printf("comm: %s\n", token_stat);  // filename of the executable, in parenthese
         else if (count_stat == 3) printf("state: %s\n", token_stat);  //eg. R (Running)
         else if (count_stat == 14)  printf("utime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in user mode
         else if (count_stat == 15)  printf("stime: %lf\n", (atof(token_stat))/sysconf(_SC_CLK_TCK)); // time scheduled in kernel mode
@@ -276,7 +284,7 @@ int main() {
         bglist();
       }
     } else if (strcmp(command[0],"bgkill") == 0) {
-      if (cmd_length != 2) {
+      if (cmd_length != 2 || !isNumber(command[1])) {
         printf("Error: Input is not in the desired format 'bgkill pid'\n");
         continue;
       } else {
@@ -284,7 +292,7 @@ int main() {
         bgkill(pid);
       }
     } else if (strcmp(command[0],"bgstop") == 0) {
-      if (cmd_length != 2) {
+      if (cmd_length != 2 || !isNumber(command[1])) {
         printf("Error: Input is not in the desired format 'bgstop pid'\n");
         continue;
       } else {
@@ -292,7 +300,7 @@ int main() {
         bgstop(pid);
       }
     } else if (strcmp(command[0],"bgstart") == 0) {
-      if (cmd_length != 2) {
+      if (cmd_length != 2 || !isNumber(command[1])) {
         printf("Error: Input is not in the desired format 'bgstart pid'\n");
         continue;
       } else {
@@ -300,7 +308,7 @@ int main() {
         bgstart(pid);
       }
     } else if (strcmp(command[0],"pstat") == 0) {
-      if (cmd_length != 2) {
+      if (cmd_length != 2 || !isNumber(command[1])) {
         printf("Error: Input is not in the desired format 'pstat pid'\n");
         continue;
       } else {
