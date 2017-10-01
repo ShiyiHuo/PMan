@@ -29,32 +29,47 @@ typedef struct node {
 process_node* head = NULL;    // process list head
 
 
-// if the process is already terminated, remove it from the process list
+void remove_process_from_list(pid_t pid) {
+  process_node *currP, *prevP;
+  prevP = NULL;
+
+  for (currP = head; currP != NULL;	prevP = currP, currP = currP->next) {
+    if (currP->pid == pid) {  /* Found it. */
+      if (prevP == NULL) {
+         head = currP->next;
+      } else {
+        prevP->next = currP->next;
+      }
+      free(currP);
+    }
+  }
+}
+
+//if the process is already terminated, remove it from the process list
 void update_process_status() {
   pid_t pid;
   int p_status;
-  while (1) {
-    pid = waitpid(-1, &p_status, WNOHANG);
-    if (pid > 0) {  //if child process exits, remove it
-      process_node *currP, *prevP;
-      prevP = NULL;
 
-      for (currP = head; currP != NULL;	prevP = currP, currP = currP->next) {
-        if (currP->pid == pid) {  /* Found it. */
-          if (prevP == NULL) {
-             head = currP->next;
-          } else {
-            prevP->next = currP->next;
-          }
-          free(currP);
-        }
-      }
-    } else {
+  while ((pid = waitpid(-1, &p_status, WNOHANG))>0) {
+		if (WIFSIGNALED(p_status)) {
+			printf("Process %d was killed.\n", pid);
+			remove_process_from_list(pid);
+		}
+		if (WIFEXITED(p_status)) {
+			printf("Process %d is terminated.\n", pid);
+			remove_process_from_list(pid);
+    }
+    else {
       break;
     }
-
+  }
+  if (pid == -1 && head != NULL) {
+    return;
   }
 }
+
+
+
 
 /* to check if a process exists in process list
  * return 1 if the process exists
@@ -164,7 +179,8 @@ void bg(char* command[]) {
     //char * args[] = {"./inf" ,"a", "1", NULL};
     if(execvp(command[1], command+1) == -1) {   // use command+1 to get cmd and its parameters
       printf("Error: Cannot execute command %s\n", command[1]);
-      return;
+      //bug fix: quit the child process
+      exit(1);
     }
   } else {
     /* failure */
@@ -191,8 +207,8 @@ void bgkill(pid_t pid) {
   if (process_exists(pid)) {
     // kill() returns 0 if successes and returns -1 for fails
     if (kill(pid, SIGTERM) == 0) {
-      printf("Process %d has been terminated\n", pid);
       usleep(1000);   // find the zombie and clean the zombie process
+      //printf("Process %d has been terminated\n", pid);
     } else {
       printf("Error: Failed to kill process %d\n", pid);
     }
@@ -206,7 +222,8 @@ void bgkill(pid_t pid) {
 void bgstop(pid_t pid) {
   if (process_exists(pid)) {
     if (kill(pid, SIGSTOP) == 0) {  // if succeeds
-      printf("Process %d has been stopped\n", pid);
+      usleep(1000);
+      //printf("Process %d has been stopped\n", pid);
     } else {
       printf("Error: Failed to kill process %d\n", pid);
     }
@@ -220,7 +237,8 @@ void bgstop(pid_t pid) {
 void bgstart(pid_t pid) {
   if (process_exists(pid)) {
     if (kill(pid, SIGCONT) == 0) {  // if succeeds
-      printf("Process %d has been resumed\n", pid);
+      usleep(1000);
+      //printf("Process %d has been resumed\n", pid);
     } else {
       printf("Error: Failed to kill process %d\n", pid);
     }
@@ -260,6 +278,11 @@ int main() {
     char* token = strtok(input," ");
     char* command[MAX_INPUT_SIZE];  // tokenized user input
     int cmd_length = 0; // user input length
+
+    // handle empty input
+    if (token == NULL) {
+      continue;
+    }
 
     while (token != NULL) {
       command[cmd_length] = token;
