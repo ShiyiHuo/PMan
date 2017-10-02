@@ -173,7 +173,7 @@ void bg(char* command[]) {
       }
       current->next = p;
     }
-    
+
     usleep(1000);
   }
   else if (pid == 0) {    // in child process
